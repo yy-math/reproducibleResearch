@@ -1,0 +1,97 @@
+---
+title: "Storm Data Analysis"
+output: html_document
+---
+
+This is an analysis of storm and severe weather data from the NOAA database. The goal is to analyze the data and answer two questions:
+
+1.Across the United States, which types of events are most harmful with respect to population health?
+
+2.Across the United States, which types of events have the greatest economic consequences?
+
+##Data Processing 
+```{r}
+# read in file
+file <- "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2"
+download.file(file, destfile = "tempdata.csv.bz2", method = "curl")
+stormData <- read.csv("./tempdata.csv.bz2")
+
+# subset relevant columns
+stormData <- stormData[,c('EVTYPE','FATALITIES','INJURIES', 'PROPDMG', 'PROPDMGEXP', 'CROPDMG', 'CROPDMGEXP')]
+
+# get property damage
+stormData$PROPDMGNUM = 0
+stormData[stormData$PROPDMGEXP == "H", ]$PROPDMGNUM = stormData[stormData$PROPDMGEXP == "H", ]$PROPDMG * 10^2
+stormData[stormData$PROPDMGEXP == "K", ]$PROPDMGNUM = stormData[stormData$PROPDMGEXP == "K", ]$PROPDMG * 10^3
+stormData[stormData$PROPDMGEXP == "M", ]$PROPDMGNUM = stormData[stormData$PROPDMGEXP == "M", ]$PROPDMG * 10^6
+stormData[stormData$PROPDMGEXP == "B", ]$PROPDMGNUM = stormData[stormData$PROPDMGEXP == "B", ]$PROPDMG * 10^9
+
+# get crop damage
+stormData$CROPDMGNUM = 0
+stormData[stormData$CROPDMGEXP == "H", ]$CROPDMGNUM = stormData[stormData$CROPDMGEXP == "H", ]$CROPDMG * 10^2
+stormData[stormData$CROPDMGEXP == "K", ]$CROPDMGNUM = stormData[stormData$CROPDMGEXP == "K", ]$CROPDMG * 10^3
+stormData[stormData$CROPDMGEXP == "M", ]$CROPDMGNUM = stormData[stormData$CROPDMGEXP == "M", ]$CROPDMG * 10^6
+stormData[stormData$CROPDMGEXP == "B", ]$CROPDMGNUM = stormData[stormData$CROPDMGEXP == "B", ]$CROPDMG * 10^9
+```
+
+##Results
+1.Across the United States, which types of events are most harmful with respect to population health?
+
+We'll look at Fatalaties first:
+```{r}
+# get ggplot to use
+library(ggplot2)
+
+# subset and aggregate fatality data
+fats <- aggregate(FATALITIES ~ EVTYPE, data=stormData, sum)
+fats <- fats[order(-fats$FATALITIES), ][1:10, ]
+fats$EVTYPE <- factor(fats$EVTYPE, levels = fats$EVTYPE)
+
+# plot fatality data
+ggplot(fats, aes(x = EVTYPE, y = FATALITIES)) + 
+        geom_bar(stat = "identity") + 
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+        xlab("Event Type") + 
+        ylab("Fatalities") + 
+        ggtitle("Top 10 Weather Events by Fatalaties")
+```
+
+And then injuries:
+```{r}
+# get ggplot to use
+library(ggplot2)
+
+# subset and aggregate injury data
+inj <- aggregate(INJURIES ~ EVTYPE, data=stormData, sum)
+inj <- inj[order(-inj$INJURIES), ][1:10, ]
+inj$EVTYPE <- factor(inj$EVTYPE, levels = inj$EVTYPE)
+
+# plot injuruy data
+ggplot(inj, aes(x = EVTYPE, y = INJURIES)) + 
+        geom_bar(stat = "identity") + 
+        theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+        xlab("Event Type") + ylab("Injuries") + 
+        ggtitle("Top 10 Weather Events by Injuries")
+```
+
+
+Across the United States, which types of events have the greatest economic consequences?
+```{r}
+# get ggplot to use
+library(ggplot2)
+
+# subset and aggregate crop and property damage data
+dam <- aggregate(PROPDMGNUM + CROPDMGNUM ~ EVTYPE, data=stormData, sum)
+names(dam) = c("EVTYPE", "TOTALDAMAGE")
+dam <- dam[order(-dam$TOTALDAMAGE), ][1:10, ]
+dam$EVTYPE <- factor(dam$EVTYPE, levels = dam$EVTYPE)
+
+# plot crop and property damage data
+ggplot(dam, aes(x = EVTYPE, y = TOTALDAMAGE)) + 
+      geom_bar(stat = "identity") + 
+      theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+      xlab("Event Type") + ylab("Damages ($)") + 
+      ggtitle("Top 10 Weather Events by Property and Crop Damage")
+``` 
+
+~fin
